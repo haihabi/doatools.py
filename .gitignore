@@ -11,3 +11,4 @@ dist/
 examples/wip/
 docs/build/
 doatools.code-workspace
+build/

@@ -67,10 +67,12 @@ def crb_sto_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
     P_A = A @ np.linalg.solve(A_H @ A, A_H)
     # Compute the H matrix.
     H = D.T.conj() @ (I - P_A) @ D
+    # Compute the FIM
+    FIM = (H * ((P @ (A_H @ np.linalg.solve(R, A)) @ P).T)).real
+    FIM = n_snapshots*FIM/(2*sigma)
     # Compute the CRB
-    CRB = (H * ((P @ (A_H @ np.linalg.solve(R, A)) @ P).T)).real
-    CRB = np.linalg.inv(CRB) * (sigma / n_snapshots / 2)
-    return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode)
+    CRB = np.linalg.inv(FIM)
+    return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode),FIM
 
 def crb_det_farfield_1d(array, sources, wavelength, P, sigma, n_snapshots=1,
                         return_mode='full'):
@@ -136,9 +138,11 @@ def crb_det_farfield_1d(array, sources, wavelength, P, sigma, n_snapshots=1,
     P_A = projm(A)
     # Compute the H matrix.
     H = D.conj().T @ (np.eye(m) - P_A) @ D
+    # Compute the FIM
+    FIM = n_snapshots * (H * P.T).real /(2*sigma)
     # Compute the CRB.
-    CRB = np.linalg.inv((H * P.T).real) * (sigma / n_snapshots / 2)
-    return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode)
+    CRB = np.linalg.inv(FIM)
+    return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode), FIM
 
 def crb_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
                           return_mode='full'):
@@ -229,4 +233,4 @@ def crb_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
         [FIM_ts.conj().T, FIM_ps.conj().T, FIM_ss]
     ])
     CRB = np.linalg.inv(FIM)[:k, :k] / n_snapshots
-    return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode)
+    return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode), FIM
