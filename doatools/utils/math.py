@@ -2,6 +2,7 @@ import numpy as np
 from scipy.signal import find_peaks
 from scipy.ndimage import maximum_filter
 
+
 def vec(x):
     """Vectorizes a matrix by stacking the columns.
     
@@ -16,13 +17,15 @@ def vec(x):
     """
     return x.reshape((-1, 1), order='F')
 
+
 def abs_squared(x):
     """Computes Re(x)^2 + Im(x)^2.
     
     Args:
         x: An complex ndarray.
     """
-    return x.real**2 + x.imag**2
+    return x.real ** 2 + x.imag ** 2
+
 
 def khatri_rao(a, b):
     """Evaluates the Khatri-Rao (i.e., column-wise Kronecker product) between
@@ -33,10 +36,11 @@ def khatri_rao(a, b):
         raise ValueError('Two input matrices must have the same number of columns.')
     c = np.zeros((n1 * n2, k1), dtype=np.result_type(a.dtype, b.dtype))
     for i in range(k1):
-        c[:,i] = np.outer(a[:,i], b[:,i]).flatten()
+        c[:, i] = np.outer(a[:, i], b[:, i]).flatten()
     return c
 
-def projm(A, use_pinv=False):
+
+def projm(A, use_pinv=True):
     """Computes the projection matrix of the input matrix.
     
     Given a full column rank matrix A, the projection matrix of A is given by
@@ -55,6 +59,7 @@ def projm(A, use_pinv=False):
     else:
         return A @ np.linalg.solve(A.T @ A, A.T)
 
+
 def cartesian(*xi):
     """Evaluates the Cartesian product among the input vectors.
 
@@ -71,6 +76,7 @@ def cartesian(*xi):
     yi = np.meshgrid(*xi, indexing='ij')
     return np.vstack([y.flatten() for y in yi]).T
 
+
 def randcn(shape):
     """Samples from complex circularly-symmetric normal distribution.
 
@@ -85,6 +91,7 @@ def randcn(shape):
     x += np.random.randn(*shape)
     x *= np.sqrt(0.5)
     return x
+
 
 def unique_rows(x, atol=0.0, rtol=1e-8, return_index=False, sort=False):
     """Obtains the unique rows within the specified tolerance.

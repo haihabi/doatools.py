@@ -5,7 +5,8 @@ import warnings
 import copy
 from .array_elements import ISOTROPIC_SCALAR_SENSOR
 from .perturbations import LocationErrors, GainErrors, PhaseErrors, \
-                           MutualCoupling
+    MutualCoupling
+
 
 class ArrayDesign:
     """Base class for all array designs.
@@ -87,7 +88,7 @@ class ArrayDesign:
         # Validate and add perturbations
         self._perturbations = {}
         self._add_perturbation_from_list(self._parse_input_perturbations(perturbations))
-    
+
     @property
     def name(self):
         """Retrieves the name of this array."""
@@ -106,7 +107,7 @@ class ArrayDesign:
         vector sensor arrays, the output size is greater than the array size.
         """
         return self.size
-    
+
     @property
     def element_locations(self):
         """Retrieves the nominal element locations.
@@ -137,7 +138,7 @@ class ArrayDesign:
     def element(self):
         """Retrieves the array element."""
         return self._element
-    
+
     @property
     def is_perturbed(self):
         """Returns if the array contains perturbations."""
@@ -157,24 +158,24 @@ class ArrayDesign:
         Perturbations do not affect this value.
         """
         return self._locations.shape[1]
-    
+
     @property
     def actual_ndim(self):
         """Retrieves the number of dimensions of the array, considering location errors."""
         return self.actual_element_locations.shape[1]
-    
+
     def has_perturbation(self, ptype):
         """Checks if the array has the given type of perturbation."""
         return ptype in self._perturbations
-    
+
     def is_perturbation_known(self, ptype):
         """Checks if the specified perturbation is known in prior."""
         return self._perturbations[ptype].is_known
-    
+
     def get_perturbation_params(self, ptype):
         """Retrieves the parameters for the specified perturbation type."""
         return self._perturbations[ptype].params
-    
+
     @property
     def perturbations(self):
         """Retrieves a list of all perturbations."""
@@ -202,7 +203,7 @@ class ArrayDesign:
                     .format(p_class.__name__)
                 )
             self._perturbations[p_class] = p
-    
+
     def _parse_input_perturbations(self, perturbations):
         if isinstance(perturbations, dict):
             factories = {
@@ -213,7 +214,7 @@ class ArrayDesign:
             }
             perturbations = [factories[k](v[0], v[1]) for k, v in perturbations.items()]
         return perturbations
-        
+
     def get_perturbed_copy(self, perturbations, new_name=None):
         """Returns a copy of this array design but with the specified
         perturbations.
@@ -441,6 +442,7 @@ class ArrayDesign:
         else:
             return A
 
+
 class GridBasedArrayDesign(ArrayDesign):
     r"""Base class for all grid-based array designs.
     
@@ -473,7 +475,7 @@ class GridBasedArrayDesign(ArrayDesign):
         name (str): Name of the array design.
         **kwargs: Other keyword arguments supported by :class:`ArrayDesign`.
     """
-    
+
     def __init__(self, indices, d0=None, name=None, bases=None, **kwargs):
         if bases is None:
             # Use d0 to generate bases.
@@ -532,6 +534,7 @@ class GridBasedArrayDesign(ArrayDesign):
         """
         return self._element_indices.copy()
 
+
 class UniformLinearArray(GridBasedArrayDesign):
     """Creates an n-element uniform linear array (ULA).
         
@@ -545,10 +548,14 @@ class UniformLinearArray(GridBasedArrayDesign):
         **kwargs: Other keyword arguments supported by :class:`ArrayDesign`.
     """
 
-    def __init__(self, n, d0, name=None, **kwargs):
+    def __init__(self, n, d0, centered=True, name=None, **kwargs):
         if name is None:
             name = 'ULA ' + str(n)
-        super().__init__(np.arange(n).reshape((-1, 1)), d0, name, **kwargs)
+        loc = np.arange(n)
+        if centered:
+            loc -= n // 2
+        super().__init__(loc.reshape((-1, 1)), d0, name, **kwargs)
+
 
 class NestedArray(GridBasedArrayDesign):
     """Creates a 1D nested array.
@@ -581,11 +588,12 @@ class NestedArray(GridBasedArrayDesign):
     def n1(self):
         """Retrieves the parameter, N1, used when creating this nested array."""
         return self._n1
-    
+
     @property
     def n2(self):
         """Retrieves the parameter, N2, used when creating this nested array."""
         return self._n2
+
 
 class CoPrimeArray(GridBasedArrayDesign):
     """Creates a 1D co-prime array.
@@ -617,7 +625,7 @@ class CoPrimeArray(GridBasedArrayDesign):
         if mode == '2m':
             indices = np.concatenate((
                 np.arange(0, n) * m,
-                np.arange(1, 2*m) * n
+                np.arange(1, 2 * m) * n
             ))
         elif mode == 'm':
             indices = np.concatenate((
@@ -638,6 +646,7 @@ class CoPrimeArray(GridBasedArrayDesign):
     def mode(self):
         """Retrieves the mode used when creating this co-prime array."""
         return self._mode
+
 
 _MRLA_PRESETS = [
     [0],
@@ -662,6 +671,7 @@ _MRLA_PRESETS = [
     [0, 1, 10, 22, 34, 46, 58, 70, 82, 94, 106, 108, 110, 112, 114, 117, 119, 121, 123, 125]
 ]
 
+
 class MinimumRedundancyLinearArray(GridBasedArrayDesign):
     """Creates an n-element minimum redundancy linear array (MRLA).
 
@@ -685,7 +695,8 @@ class MinimumRedundancyLinearArray(GridBasedArrayDesign):
         if name is None:
             name = 'MRLA {0}'.format(n)
         super().__init__(np.array(_MRLA_PRESETS[n - 1])[:, np.newaxis], d0, name, **kwargs)
-        
+
+
 class UniformCircularArray(ArrayDesign):
     """Creates a uniform circular array (UCA).
     
@@ -711,6 +722,7 @@ class UniformCircularArray(ArrayDesign):
         """Retrieves the radius of the uniform circular array."""
         return self._r
 
+
 class UniformRectangularArray(GridBasedArrayDesign):
     """Creates an m x n uniform rectangular array (URA).
     
@@ -732,7 +744,7 @@ class UniformRectangularArray(GridBasedArrayDesign):
         self._shape = (m, n)
         indices = cartesian(np.arange(m), np.arange(n))
         super().__init__(indices, d0, name, **kwargs)
-    
+
     @property
     def shape(self):
         """Retrieves the shape of this uniform rectangular array."""

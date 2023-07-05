@@ -12,3 +12,10 @@ examples/wip/
 docs/build/
 doatools.code-workspace
 build/
+.idea/doatools.py.iml
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+*.svg
+.idea/workspace.xml

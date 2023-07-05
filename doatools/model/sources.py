@@ -6,9 +6,11 @@ import numpy as np
 from scipy.spatial.distance import cdist
 from ..utils.conversion import convert_angles, cart2spherical
 
+
 def _validate_sensor_location_ndim(sensor_locations):
     if sensor_locations.shape[1] < 1 or sensor_locations.shape[1] > 3:
         raise ValueError('Sensor locations can only consists of 1D, 2D or 3D coordinates.')
+
 
 class SourcePlacement(ABC):
     """Represents the placement of several sources.
@@ -74,7 +76,7 @@ class SourcePlacement(ABC):
         discourage because modified values are not checked for validity.
         """
         return self._locations
-    
+
     @property
     @abstractmethod
     def is_far_field(self):
@@ -99,7 +101,7 @@ class SourcePlacement(ABC):
             ((min_1, max_1), ...): A tuple of 2-element tuples of min-max pairs.
         """
         raise NotImplementedError()
-    
+
     @abstractmethod
     def as_unit(self, new_unit):
         """Creates a copy with the source locations converted to the new unit."""
@@ -154,6 +156,7 @@ class SourcePlacement(ABC):
         """
         pass
 
+
 class FarField1DSourcePlacement(SourcePlacement):
     """Creates a far-field 1D source placement.
 
@@ -179,7 +182,7 @@ class FarField1DSourcePlacement(SourcePlacement):
     """
 
     VALID_RANGES = {
-        'rad': (-np.pi/2, np.pi/2),
+        'rad': (-np.pi / 2, np.pi / 2),
         'deg': (-90.0, 90.0),
         'sin': (-1.0, 1.0)
     }
@@ -225,7 +228,7 @@ class FarField1DSourcePlacement(SourcePlacement):
             sin_vals.sort()
             return FarField1DSourcePlacement(sin_vals, 'sin')
         locations = np.arcsin(sin_vals)
-        locations.sort()        
+        locations.sort()
         if unit == 'rad':
             return FarField1DSourcePlacement(locations)
         else:
@@ -251,19 +254,19 @@ class FarField1DSourcePlacement(SourcePlacement):
         r = np.full((m, k), np.inf)
         el = np.zeros((m, k))
         # Broadside angles are defined relative to the y-axis
-        az = np.pi/2 - convert_angles(self.locations, self.units[0], 'rad')
+        az = np.pi / 2 - convert_angles(self.locations, self.units[0], 'rad')
         az = np.tile(az, (m, 1))
         return r, az, el
 
     def phase_delay_matrix(self, sensor_locations, wavelength, derivatives=False):
         """Computes the phase delay matrix for 1D far-field sources."""
         _validate_sensor_location_ndim(sensor_locations)
-        
+
         if self._units[0] == 'sin':
             return self._phase_delay_matrix_sin(sensor_locations, wavelength, derivatives)
         else:
             return self._phase_delay_matrix_rad(sensor_locations, wavelength, derivatives)
-        
+
     def _phase_delay_matrix_rad(self, sensor_locations, wavelength, derivatives=False):
         # Unit can only be 'rad' or 'deg'.
         # Unify to radians.
@@ -271,7 +274,7 @@ class FarField1DSourcePlacement(SourcePlacement):
             locations = np.deg2rad(self._locations)
         else:
             locations = self._locations
-        
+
         locations = locations[np.newaxis]
         s = 2 * np.pi / wavelength
         if sensor_locations.shape[1] == 1:
@@ -290,7 +293,7 @@ class FarField1DSourcePlacement(SourcePlacement):
                 DD = s * (np.outer(sensor_locations[:, 0], np.cos(locations)) -
                           np.outer(sensor_locations[:, 1], np.sin(locations)))
         if self._units[0] == 'deg' and derivatives:
-            DD *= np.pi / 180.0 # Do not forget the scaling when unit is 'deg'.
+            DD *= np.pi / 180.0  # Do not forget the scaling when unit is 'deg'.
         return (D, DD) if derivatives else D
 
     def _phase_delay_matrix_sin(self, sensor_locations, wavelength, derivatives=False):
@@ -322,6 +325,35 @@ class FarField1DSourcePlacement(SourcePlacement):
         return (D, DD) if derivatives else D
 
 
+class FarField1DGroupSourcePlacement(FarField1DSourcePlacement):
+    def __init__(self, in_rho, in_width, in_total_sources, width_estimation=False):
+        self._n_groups = in_rho.shape[0]
+        sensors_per_ground = in_total_sources // self.n_groups
+        if width_estimation:
+            self.h_matrix = np.zeros([in_total_sources, self.n_groups * (1 + int(width_estimation))])
+            for g in range(self.n_groups):
+                self.h_matrix[g * sensors_per_ground:(g + 1) * sensors_per_ground, g:(g + 1)] = np.ones(
+                    sensors_per_ground).reshape([-1, 1])
+                self.h_matrix[g * sensors_per_ground:(g + 1) * sensors_per_ground,
+                g + self.n_groups:(g + 1) + self.n_groups] = np.linspace(-0.5, 0.5, sensors_per_ground).reshape([-1, 1])
+            rho = np.concatenate([in_rho, in_width])
+        else:
+            self.h_matrix = np.zeros([in_total_sources, self.n_groups])
+            for g in range(self.n_groups):
+                h_base = np.ones(sensors_per_ground) + np.linspace(-0.5, 0.5, sensors_per_ground) * in_width[g]
+                self.h_matrix[g * sensors_per_ground:(g + 1) * sensors_per_ground, g:(g + 1)] = h_base.reshape([-1, 1])
+
+            rho = in_rho
+        self.h_dagger = np.linalg.inv(self.h_matrix.T @ self.h_matrix) @ self.h_matrix.T
+        locations = self.h_matrix @ rho
+        self.rho = rho
+        super().__init__(locations)
+
+    @property
+    def n_groups(self):
+        return self._n_groups
+
+
 class FarField2DSourcePlacement(SourcePlacement):
     """Creates a far-field 2D source placement.
 
@@ -338,7 +370,7 @@ class FarField2DSourcePlacement(SourcePlacement):
     """
 
     VALID_RANGES = {
-        'rad': ((-np.pi, np.pi), (-np.pi/2, np.pi/2)),
+        'rad': ((-np.pi, np.pi), (-np.pi / 2, np.pi / 2)),
         'deg': ((-180.0, 180.0), (-90.0, 90.0))
     }
 
@@ -368,7 +400,7 @@ class FarField2DSourcePlacement(SourcePlacement):
     @property
     def is_far_field(self):
         return True
-    
+
     @property
     def valid_ranges(self):
         return FarField2DSourcePlacement.VALID_RANGES[self._units[0]]
@@ -402,7 +434,7 @@ class FarField2DSourcePlacement(SourcePlacement):
             locations = np.deg2rad(self._locations)
         else:
             locations = self._locations
-        
+
         s = 2 * np.pi / wavelength
         cos_el = np.cos(locations[:, 1])
         if sensor_locations.shape[1] == 1:
@@ -421,8 +453,9 @@ class FarField2DSourcePlacement(SourcePlacement):
                 D = s * (np.outer(sensor_locations[:, 0], cc) +
                          np.outer(sensor_locations[:, 1], cs) +
                          np.outer(sensor_locations[:, 2], np.sin(locations[:, 1])))
-        
+
         return D
+
 
 class NearField2DSourcePlacement(SourcePlacement):
     """Creates a near-field 2D source placement.
@@ -494,5 +527,5 @@ class NearField2DSourcePlacement(SourcePlacement):
         s = - 2 * np.pi / wavelength
         # Compute the pair-wise Euclidean distance.
         M = cdist(sensor_locations, source_locations, 'euclidean')
-        M -= M[0, :].copy() # Use the first sensor as the reference sensor.
+        M -= M[0, :].copy()  # Use the first sensor as the reference sensor.
         return s * M

@@ -3,6 +3,7 @@ from ..model.sources import FarField1DSourcePlacement
 from .utils import unify_p_to_matrix, unify_p_to_vector, reduce_output_matrix
 from ..utils.math import projm
 
+
 def crb_sto_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
                         return_mode='full'):
     r"""Computes the stochastic CRB for 1D farfield sources.
@@ -69,10 +70,11 @@ def crb_sto_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
     H = D.T.conj() @ (I - P_A) @ D
     # Compute the FIM
     FIM = (H * ((P @ (A_H @ np.linalg.solve(R, A)) @ P).T)).real
-    FIM = n_snapshots*FIM/(2*sigma)
+    FIM = n_snapshots * FIM / (2 * sigma)
     # Compute the CRB
     CRB = np.linalg.inv(FIM)
-    return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode),FIM
+    return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode), FIM
+
 
 def crb_det_farfield_1d(array, sources, wavelength, P, sigma, n_snapshots=1,
                         return_mode='full'):
@@ -132,17 +134,100 @@ def crb_det_farfield_1d(array, sources, wavelength, P, sigma, n_snapshots=1,
     k = sources.size
     m = array.size
     if P.ndim != 2 or P.shape[0] != k or P.shape[1] != k:
-        raise ValueError('The sample covariance matrix of the source signals must be a K x K matrix, where K is the number of sources.')
+        raise ValueError(
+            'The sample covariance matrix of the source signals must be a K x K matrix, where K is the number of sources.')
     A, D = array.steering_matrix(sources, wavelength, True, 'all')
     # Compute the projection matrix: A (A^H A)^{-1} A^H
     P_A = projm(A)
-    # Compute the H matrix.
+    # Compute the H matrix. @ (np.eye(m) - P_A) @
     H = D.conj().T @ (np.eye(m) - P_A) @ D
     # Compute the FIM
-    FIM = n_snapshots * (H * P.T).real /(2*sigma)
+    FIM = 2 * n_snapshots * (H * P.T).real / sigma
     # Compute the CRB.
+    # print(H.diagonal())
     CRB = np.linalg.inv(FIM)
     return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode), FIM
+
+
+def crb_det_farfield_1d_grouped(array, sources, wavelength, S, P, sigma, n_snapshots=1,
+                                return_mode='full'):
+    r"""Computes the deterministic CRB for 1D farfield sources.
+
+    Under the deterministic signal model, the source signal is assumed to be
+    deterministic unknown, and the noise signal is assumed complex white
+    Gaussian. The unknown parameters include:
+
+    * Source locations.
+    * Real and imaginary parts of the source signals.
+    * Noise variance.
+
+    This function only computes the CRB for source locations.
+    Because the unknown parameters do not include array perturbation parameters,
+    all array perturbation parameters are assumed known during the computation.
+
+    Args:
+        array (~doatools.model.arrays.ArrayDesign): Array design.
+        wavelength (float): Wavelength of the carrier wave.
+        sources (~doatools.model.sources.FarField1DSourcePlacement):
+            Source locations.
+        P: The sample covariance matrix of the source signals. Suppose there are
+            :math:`T` snapshots,
+            :math:`\mathbf{x}(1), \mathbf{x}(2), \ldots, \mathbf{x}(T)`.
+            The sample covariance matrix of the source signals is obtained as
+            follows:
+
+            .. math::
+
+                \frac{1}{T} \sum_{t=1}^T \mathbf{x}(t) \mathbf{x}^H(t).
+
+        sigma (float): Variance of the additive noise.
+        n_snapshots (int): Number of snapshots. Default value is 1.
+        return_mode (str): Can be one of the following:
+
+            1. ``'full'``: returns the full CRB matrix.
+            2. ``'diag'``: returns only the diagonals of the CRB matrix.
+            3. ``'mean_diag'``: returns the mean of the diagonals of the CRB
+               matrix.
+
+            Default value is ``'full'``.
+
+    Returns:
+        Depending on ``'return_mode'``, can be the full CRB matrix, the
+        diagonals of the CRB matrix, or the mean of the diagonals of the CRB
+        matrix.
+
+    References:
+        [1] P. Stoica and A. Nehorai, "Performance study of conditional and
+        unconditional direction-of-arrival estimation," IEEE Transactions on
+        Acoustics, Speech and Signal Processing, vol. 38, no. 10,
+        pp. 1783-1795, Oct. 1990.
+    """
+    if not isinstance(sources, FarField1DSourcePlacement):
+        raise ValueError('Sources must be far-field and 1D.')
+    k = sources.size
+    m = array.size
+    if P.ndim != 2 or P.shape[0] != k or P.shape[1] != k:
+        raise ValueError(
+            'The sample covariance matrix of the source signals must be a K x K matrix, where K is the number of sources.')
+    A, D = array.steering_matrix(sources, wavelength, True, 'all')
+
+    # score = np.concatenate([D, A], axis=-1)
+    #
+    # FIM_type2 = score.T.conj() @ score
+    # FIM_type2[:8, :8] = FIM_type2[:8, :8] * P.T
+    # FIM_type2 = 2 * n_snapshots * np.real(FIM_type2) / sigma
+    # CRB_Type = np.linalg.inv(FIM_type2)
+    # Compute the projection matrix: A (A^H A)^{-1} A^H
+    P_A = projm(A)
+    # Compute the H matrix. @ (np.eye(m) - P_A) @
+    H = D.conj().T @ (np.eye(m) - P_A) @ D
+    # Compute the FIM
+    FIM = 2 * n_snapshots * (H * P.T).real / sigma
+    # Compute the CRB.
+    # print(H.diagonal())
+    CRB = np.linalg.inv(FIM)
+    return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode), FIM
+
 
 def crb_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
                           return_mode='full'):
@@ -223,13 +308,12 @@ def crb_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
     FIM_pp = (ARA.conj().T * ARA).real
     R_inv2 = R_inv @ R_inv
     FIM_ss = np.trace(R_inv2).real
-    # diag(A @ B) = np.sum(A^T * B, axis=0, keepdims=True)
     FIM_tp = 2.0 * (DRA.conj() * (p[:, np.newaxis] * ARA)).real
     FIM_ts = 2.0 * (p * np.sum(DA.conj() * (R_inv2 @ A), axis=0)).real[:, np.newaxis]
     FIM_ps = np.sum(A.conj() * (R_inv2 @ A), axis=0).real[:, np.newaxis]
     FIM = np.block([
-        [FIM_tt,          FIM_tp,          FIM_ts],
-        [FIM_tp.conj().T, FIM_pp,          FIM_ps],
+        [FIM_tt, FIM_tp, FIM_ts],
+        [FIM_tp.conj().T, FIM_pp, FIM_ps],
         [FIM_ts.conj().T, FIM_ps.conj().T, FIM_ss]
     ])
     CRB = np.linalg.inv(FIM)[:k, :k] / n_snapshots
