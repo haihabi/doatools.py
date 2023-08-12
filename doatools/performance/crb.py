@@ -70,9 +70,9 @@ def crb_sto_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
     H = D.T.conj() @ (I - P_A) @ D
     # Compute the FIM
     FIM = (H * ((P @ (A_H @ np.linalg.solve(R, A)) @ P).T)).real
-    FIM = n_snapshots * FIM / (2 * sigma)
+    FIM = 2 * n_snapshots * FIM / sigma
     # Compute the CRB
-    CRB = np.linalg.inv(FIM)
+    CRB = np.linalg.inv(FIM) * (1 / 1 / 1)
     return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode), FIM
 
 

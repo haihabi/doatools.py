@@ -4,7 +4,8 @@ from scipy.signal import find_peaks
 import warnings
 from ..model.sources import FarField1DSourcePlacement
 from .core import SpectrumBasedEstimatorBase, get_noise_subspace, \
-                  ensure_covariance_size, ensure_n_resolvable_sources
+    ensure_covariance_size, ensure_n_resolvable_sources
+
 
 def f_music(A, En):
     r"""Computes the classical MUSIC spectrum
@@ -25,6 +26,7 @@ def f_music(A, En):
     """
     v = En.T.conj() @ A
     return np.reciprocal(np.sum(v * v.conj(), axis=0).real)
+
 
 class MUSIC(SpectrumBasedEstimatorBase):
     """Creates a spectrum-based MUSIC estimator.
@@ -49,7 +51,7 @@ class MUSIC(SpectrumBasedEstimatorBase):
 
     def __init__(self, array, wavelength, search_grid, **kwargs):
         super().__init__(array, wavelength, search_grid, **kwargs)
-        
+
     def estimate(self, R, k, **kwargs):
         """Estimates the source locations from the given covariance matrix.
 
@@ -92,6 +94,7 @@ class MUSIC(SpectrumBasedEstimatorBase):
         ensure_n_resolvable_sources(k, self._array.size - 1)
         En = get_noise_subspace(R, k)
         return self._estimate(lambda A: f_music(A, En), k, **kwargs)
+
 
 class RootMUSIC1D:
     """Creates a root-MUSIC estimator for uniform linear arrays.

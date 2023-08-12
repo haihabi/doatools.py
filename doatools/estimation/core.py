@@ -4,6 +4,7 @@ import numpy as np
 from scipy.signal import find_peaks
 from scipy.ndimage import maximum_filter
 
+
 # Helper functions for validating inputs.
 def ensure_covariance_size(R, array):
     """Ensures the size of R matches the given array design."""
@@ -17,6 +18,7 @@ def ensure_covariance_size(R, array):
             .format((m, m), R.shape)
         )
 
+
 def ensure_n_resolvable_sources(k, max_k):
     """Checks if the number of expected sources exceeds the maximum resolvable sources."""
     if k > max_k:
@@ -24,6 +26,7 @@ def ensure_n_resolvable_sources(k, max_k):
             'Too many sources. Maximum number of resolvable sources is {0}'
             .format(max_k)
         )
+
 
 def find_peaks_simple(x):
     if x.ndim == 1:
@@ -33,6 +36,7 @@ def find_peaks_simple(x):
         # Use maximum filter for peak finding.
         y = maximum_filter(x, 3)
         return np.where(x == y)
+
 
 def get_noise_subspace(R, k):
     """
@@ -44,7 +48,8 @@ def get_noise_subspace(R, k):
     """
     _, E = np.linalg.eigh(R)
     # Note: eigenvalues are sorted in ascending order.
-    return E[:,:-k]
+    return E[:, :-k]
+
 
 class SpectrumBasedEstimatorBase(ABC):
 
@@ -73,7 +78,7 @@ class SpectrumBasedEstimatorBase(ABC):
         self._peak_finder = peak_finder
         self._enable_caching = enable_caching
         self._atom_matrix = None
-    
+
     def _compute_atom_matrix(self, grid):
         """Computes the atom matrix for spectrum computation.
         
@@ -196,7 +201,7 @@ class SpectrumBasedEstimatorBase(ABC):
                 return True, estimates, sp
             else:
                 return True, estimates
-        
+
     def _refine_estimates(self, f_sp, est0, peak_indices, density=10, n_iters=3):
         """Refines the estimates.
         
@@ -225,7 +230,7 @@ class SpectrumBasedEstimatorBase(ABC):
                 # Refine the i-th estimate.
                 A = self._get_atom_matrix(g)
                 sp = f_sp(A)
-                i_max = sp.argmax() # argmax for the flattened spectrum.
+                i_max = sp.argmax()  # argmax for the flattened spectrum.
                 # Update the initial estimates in-place.
                 locations[i] = g.source_placement[i_max]
                 if r == n_iters - 1:

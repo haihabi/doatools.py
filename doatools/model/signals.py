@@ -3,6 +3,7 @@ import numpy as np
 from scipy.linalg import sqrtm
 from ..utils.math import randcn
 
+
 class SignalGenerator(ABC):
     """Abstrace base class for all signal generators.
     
@@ -23,6 +24,7 @@ class SignalGenerator(ABC):
         each column represents a sample.
         """
         pass
+
 
 class ComplexStochasticSignal(SignalGenerator):
     """Creates a signal generator that generates zero-mean complex
@@ -68,13 +70,14 @@ class ComplexStochasticSignal(SignalGenerator):
                 'size {0}, or a matrix of {0}x{0}.'.format(dim)
             )
         self._C = C
-    
+
     @property
     def dim(self):
         return self._dim
 
     def emit(self, n):
         return self._generator(n)
+
 
 class RandomPhaseSignal(SignalGenerator):
     r"""Creates a random phase signal generator.

@@ -5,6 +5,7 @@ from ..model.sources import FarField1DSourcePlacement
 from ..utils.math import projm, vec
 from .core import ensure_covariance_size, ensure_n_resolvable_sources
 
+
 def f_nll_stouc(R, array, sources, wavelength, p, sigma):
     # log|S| + tr(S^{-1} R)
     # S = A P A^H + sigma * I
@@ -14,6 +15,7 @@ def f_nll_stouc(R, array, sources, wavelength, p, sigma):
     if sgn < 0 or logdet < 0:
         return np.Inf
     return logdet + np.trace(np.linalg.solve(S, R))
+
 
 class CovarianceBasedMLEstimator(ABC):
     """Abstract base class for covariance based maximum-likelihood estimators.
@@ -107,7 +109,7 @@ class CovarianceBasedMLEstimator(ABC):
         """
         k = sources0.size
         # Delegate the call to self.eval_nll
-        f = lambda x : self._eval_nll(x, R, k)
+        f = lambda x: self._eval_nll(x, R, k)
         # Simply flatten the source location array:
         # x0 = [\theta_{11} \theta_{12} ... \theta_{1d} \theta{21} ...]
         # For instance, for far-field 2D sources
@@ -144,7 +146,7 @@ class CovarianceBasedMLEstimator(ABC):
             self._estimates, self._wavelength,
             perturbations='known'
         )
-    
+
     def estimate(self, R, sources0, **kwargs):
         r"""Solves the ML problem for the given inputs.
 
@@ -202,6 +204,7 @@ class CovarianceBasedMLEstimator(ABC):
         else:
             return False, None
 
+
 class AMLEstimator(CovarianceBasedMLEstimator):
     r"""Asymptotic maximum-likelihood (AML) estimator.
     
@@ -257,6 +260,7 @@ class AMLEstimator(CovarianceBasedMLEstimator):
         else:
             return nll_val
 
+
 class CMLEstimator(CovarianceBasedMLEstimator):
     r"""Conditional maximum-likelihood (CML) estimator.
     
@@ -304,6 +308,7 @@ class CMLEstimator(CovarianceBasedMLEstimator):
         PPA = np.eye(self._array.size) - projm(A, True)
         return np.real(np.trace(PPA @ R))
 
+
 class WSFEstimator(CovarianceBasedMLEstimator):
     r"""Weighted subspace fitting (WSF) estimator.
 
@@ -339,7 +344,7 @@ class WSFEstimator(CovarianceBasedMLEstimator):
         # Pre-calculate optimal weights
         v, E = np.linalg.eigh(R)
         # Signal subspace
-        Es = E[:,-k:]
+        Es = E[:, -k:]
         vs = v[-k:]
         # Noise variance estimate
         sigma_est = np.sum(v[:-k]) / (self._array.size - k)

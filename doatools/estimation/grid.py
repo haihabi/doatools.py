@@ -1,8 +1,8 @@
-
 from abc import ABC, abstractmethod
 import numpy as np
 from ..model.sources import FarField1DSourcePlacement, FarField2DSourcePlacement, NearField2DSourcePlacement
 from ..utils.math import cartesian
+
 
 class SearchGrid(ABC):
     """Base class for all search grids. Provides standard implementation.
@@ -92,12 +92,12 @@ class SearchGrid(ABC):
         Do **not** modify.
         """
         return self._axes
-    
+
     @property
     def axis_names(self):
         """Retrieves a tuple of strings representing the axis names."""
         return self._axis_names
-    
+
     @abstractmethod
     def _create_source_placement(self):
         """Creates the source placement instance for this grid.
@@ -187,7 +187,7 @@ class SearchGrid(ABC):
             A list of refined grids.
         """
         return [self.create_refined_grid_at(coord, **kwargs) for coord in zip(*coords)]
-    
+
     @abstractmethod
     def create_refined_grid_at(self, coord, density, span):
         """Creates a finer search grid around the given coordinate.
@@ -205,6 +205,7 @@ class SearchGrid(ABC):
             A refined grid.
         """
         raise NotImplementedError()
+
 
 class FarField1DSearchGrid(SearchGrid):
     r"""Creates a search grid for 1D far-field source localization.
@@ -267,9 +268,9 @@ class FarField1DSearchGrid(SearchGrid):
                 locations = np.zeros((n_points, 1))
                 offset = 0
                 for k in range(len(start)):
-                    locations[offset:offset+size[k], 0] = np.linspace(start[k], stop[k], size[k], endpoint=False)
+                    locations[offset:offset + size[k], 0] = np.linspace(start[k], stop[k], size[k], endpoint=False)
             super().__init__((locations,), ('DOA',), (unit,))
-    
+
     def _create_source_placement(self):
         return FarField1DSourcePlacement(self._axes[0], self._units[0])
 
@@ -290,6 +291,7 @@ class FarField1DSearchGrid(SearchGrid):
         """
         axes = self.create_refined_axes_at(coord, density, span)
         return FarField1DSearchGrid(unit=self._units[0], axes=axes)
+
 
 class FarField2DSearchGrid(SearchGrid):
     r"""Creates a search grid for 2D far-field source localization.
@@ -337,7 +339,7 @@ class FarField2DSearchGrid(SearchGrid):
             super().__init__(axes, axis_names, (unit, unit))
         else:
             default_ranges = {
-                'rad': ((-np.pi, 0.0), (np.pi, np.pi/2)),
+                'rad': ((-np.pi, 0.0), (np.pi, np.pi / 2)),
                 'deg': ((-180.0, 0.0), (180.0, 90.0))
             }
             if start is None:
@@ -370,6 +372,7 @@ class FarField2DSearchGrid(SearchGrid):
         """
         axes = self.create_refined_axes_at(coord, density, span)
         return FarField2DSearchGrid(unit=self._units[0], axes=axes)
+
 
 class NearField2DSearchGrid(SearchGrid):
     """Creates a search grid for 2D near-field source localization.
