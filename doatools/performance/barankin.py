@@ -40,7 +40,9 @@ def search_test_points(array, wavelength, sources, sigma, p, r_inv, r_det, l_sel
     r_det_temp = np.asarray(r_det_temp)
 
     cost = np.real(r_det / ((r_det_temp[:, 0] ** 2) * r_det_temp[:, 1]))
-
+    if np.any(cost < 0):
+        test_points_search_array = test_points_search_array[:, cost >= 0]
+        cost = cost[cost >= 0]
     index_select = np.argsort(cost)[:l_select]
     return test_points_search_array[:, index_select]
 
@@ -50,7 +52,7 @@ def compute_barakin_matrix(r_det, r_inv, in_test_points):
 
 
 def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
-                               return_mode='full', l_test_points=10):
+                               return_mode='full', l_test_points=60):
     r"""Computes the stochastic CRB for 1D farfield sources with the assumption
     that the sources are uncorrelated.
 
@@ -106,6 +108,7 @@ def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots
         [3] C-L. Liu and P. P. Vaidyanathan, "Cramér-Rao bounds for coprime and
         other sparse arrays, which find more sources than sensors," Digital
         Signal Processing, vol. 61, pp. 43-61, 2017.
+        :param l_test_points:
     """
     if not isinstance(sources, FarField1DSourcePlacement):
         raise ValueError('Sources must be far-field and 1D.')
@@ -116,7 +119,7 @@ def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots
     # Compute steering matrix of sources.
 
     R = compute_r_matrix(array, wavelength, sources, sigma, p)
-    r_det = np.linalg.det(R)
+    r_det = np.real(np.linalg.det(R))
     r_inv = np.linalg.inv(R)
     test_points = search_test_points(array, wavelength, sources, sigma, p, r_inv, r_det, l_test_points, l_options=10000,
                                      eps=1e-2)
@@ -124,18 +127,37 @@ def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots
     r_det_array = []
     r_inv_list = []
     for i in range(test_points.shape[-1]):
-        r = compute_r_matrix(array, wavelength, test_points[:, i].reshape([-1, 1]), sigma, p)
-        r_inv = np.linalg.inv(r)
-        r_inv_list.append(r_inv)
-        r_det_array.append(np.linalg.det(r))
-    #
-    # b_matrix = np.zeros(test_points.shape[-1], test_points.shape[-1])
-    # for i in range(test_points.shape[-1]):
-    #     for j in range(test_points.shape[-1]):
-    #         if i < j:
-    #             r_delta=
-    #             den = r_det_array[i] * r_det_array[j]
-    #             b_matrix[i, j] =
+        tp = test_points[:, i].reshape([-1, 1])
+        # print(tp)
+        _r = compute_r_matrix(array, wavelength, tp, sigma, p)
+        r_inv_list.append(np.linalg.inv(_r))
+        r_det_array.append(np.real(np.linalg.det(_r)))
+
+    b_matrix = np.zeros([test_points.shape[-1], test_points.shape[-1]])
+    for i in range(test_points.shape[-1]):
+        for j in range(test_points.shape[-1]):
+            if i <= j:
+                r_delta = np.real(np.linalg.det(r_inv_list[i] + r_inv_list[j] - r_inv))
+                den_log = np.log10(r_delta) + np.log10(np.real(r_det_array[j])) + np.log10(np.real(r_det_array[i]))
+                d = np.log10(np.real(r_det)) - den_log
+                b_matrix[i, j] = b_matrix[j, i] = np.real(np.power(10, d * n_snapshots))
+    one_one = np.ones_like(b_matrix)
+
+    delta_tp = test_points - sources.locations.reshape([-1, 1])
+    try:
+        delta_matrix = b_matrix - one_one
+        index = np.sum(delta_matrix, axis=1) != 0
+        if not np.all(index):
+            print("Filter")
+            delta_matrix = delta_matrix[index, index].reshape([1, 1])
+            delta_tp = delta_tp[:, index]
+
+        bound = delta_tp @ np.linalg.inv(delta_matrix) @ delta_tp.T
+        print(bound)
+        return bound, None
+    except:
+        print("a")
+    # print("a")
 
     # b_matrix = compute_barakin_matrix()
 
