@@ -1,6 +1,7 @@
 import numpy as np
 from doatools.model import FarField1DSourcePlacement
 from doatools.performance.utils import unify_p_to_matrix
+import scipy
 
 
 def compute_r_matrix(in_array, in_wavelength, in_locations, in_sigma, source_covariance):
@@ -15,11 +16,11 @@ def compute_r_matrix(in_array, in_wavelength, in_locations, in_sigma, source_cov
 
 
 def search_test_points(array, wavelength, sources, sigma, p, n_snapshots, r_inv, r_det, l_select, l_options=10000,
-                       eps=1e-2):
+                       eps=1e-2, range_min=-np.pi / 2, range_max=np.pi / 2):
     k = sources.size
     # Generate test option
     if isinstance(sources, FarField1DSourcePlacement):
-        base_array = np.linspace(-np.pi / 2 + eps, np.pi / 2 - eps, np.ceil(np.power(l_options, 1 / k)).astype("int"))
+        base_array = np.linspace(range_min + eps, range_max - eps, np.ceil(np.power(l_options, 1 / k)).astype("int"))
         test_points_search_array = np.meshgrid(*[base_array for _ in range(k)])
         test_points_search_array = np.stack(test_points_search_array)
         test_points_search_array = np.reshape(test_points_search_array, [k, -1])
@@ -38,15 +39,14 @@ def search_test_points(array, wavelength, sources, sigma, p, n_snapshots, r_inv,
     r_det_temp = np.asarray(r_det_temp)
 
     cost = np.real(r_det / ((r_det_temp[:, 0] ** 2) * r_det_temp[:, 1]))
+
+    # print("a")
     if np.any(cost < 0):
         test_points_search_array = test_points_search_array[:, cost >= 0]
         cost = cost[cost >= 0]
-    index_select = np.argsort(cost)[:l_select]
-    # from matplotlib import pyplot as plt
-    # plt.plot(test_points_search_array.flatten(), 1 / cost)
-    # plt.plot(test_points_search_array[:, index_select].flatten(), 1 / cost[index_select], "o")
-    # plt.show()
-    return test_points_search_array[:, index_select]
+
+    peaks = scipy.signal.find_peaks(1 / cost)[0]
+    return test_points_search_array[:, peaks]
 
 
 def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1, l_test_points=30):
@@ -105,8 +105,6 @@ def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots
     test_points = search_test_points(array, wavelength, sources, sigma, p, n_snapshots, r_inv, r_det, l_test_points,
                                      l_options=1600,
                                      eps=1e-2)
-    # test_points = np.linspace(-np.pi * 0.9 / 2, 0.9 * np.pi / 2, l_test_points).reshape([1, -1])
-    # print("a")
     #############################
     # Compute the Barankin matrix
     #############################
@@ -123,9 +121,6 @@ def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots
         for j in range(test_points.shape[-1]):
             if i <= j:
                 r_delta = np.real(np.linalg.det(r_inv_list[i] + r_inv_list[j] - r_inv))
-                # den_log = np.log10(r_delta) + np.log10(np.real(r_det_array[j])) + np.log10(np.real(r_det_array[i]))
-                # d = np.log10(np.real(r_det)) - den_log
-                # b_matrix[i, j] = b_matrix[j, i] = np.real(np.power(10, d * n_snapshots))
                 b_matrix[i, j] = b_matrix[j, i] = np.power(r_det / (r_delta * r_det_array[j] * r_det_array[i]),
                                                            n_snapshots)
     b_matrix = np.real(b_matrix)
@@ -135,6 +130,7 @@ def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots
     delta_matrix = b_matrix - one_one
     index = np.sum(delta_matrix, axis=1) != 0
     if not np.all(index):
+        print("Filter")
         delta_matrix = delta_matrix[index, index].reshape([1, 1])
         delta_tp = delta_tp[:, index]
     bound = delta_tp @ np.linalg.inv(delta_matrix) @ delta_tp.T
