@@ -1,5 +1,5 @@
 import numpy as np
-from ..model.sources import FarField1DSourcePlacement
+from ..model.sources import FarField1DSourcePlacement, NearField1DSourcePlacement
 from .utils import unify_p_to_matrix, unify_p_to_vector, reduce_output_matrix
 from ..utils.math import projm
 
@@ -55,7 +55,7 @@ def crb_sto_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
         Acoustics, Speech and Signal Processing, vol. 38, no. 10,
         pp. 1783-1795, Oct. 1990.
     """
-    if not isinstance(sources, FarField1DSourcePlacement):
+    if not (isinstance(sources, FarField1DSourcePlacement) or isinstance(sources, NearField1DSourcePlacement)):
         raise ValueError('Sources must be far-field and 1D.')
     k = sources.size
     P = unify_p_to_matrix(p, k)
@@ -224,7 +224,6 @@ def crb_det_farfield_1d_grouped(array, sources, wavelength, S, P, sigma, n_snaps
     # Compute the FIM
     FIM = 2 * n_snapshots * (H * P.T).real / sigma
     # Compute the CRB.
-    # print(H.diagonal())
     CRB = np.linalg.inv(FIM)
     return reduce_output_matrix(0.5 * (CRB + CRB.T), return_mode), FIM
 

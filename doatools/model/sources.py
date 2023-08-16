@@ -529,3 +529,141 @@ class NearField2DSourcePlacement(SourcePlacement):
         M = cdist(sensor_locations, source_locations, 'euclidean')
         M -= M[0, :].copy()  # Use the first sensor as the reference sensor.
         return s * M
+
+
+class NearField1DSourcePlacement(SourcePlacement):
+    """Creates a far-field 1D source placement.
+
+    Far-field 1D sources are placed within the xy-plane and represented by
+    the angles relative and range to the y-axis (broadside angles for an array placed
+    along the x-axis).
+
+    ::
+
+                 y
+                 ^
+                 |   /
+                 |  /
+                 |-/
+                 |/
+        ---------+---------> x
+
+    Args:
+        locations: A list or 1D numpy array representing the source locations.
+        unit (str): Can be ``'rad'``, ``'deg'`` or ``'sin'``. ``'sin'`` is a
+            special unit where sine value of the broadside angle is used instead
+            of the broadside angle itself. Default value is ``'rad'``.
+    """
+
+    VALID_RANGES = {
+        'rad': (-np.pi / 2, np.pi / 2),
+        'deg': (-90.0, 90.0),
+        'sin': (-1.0, 1.0)
+    }
+
+    def __init__(self, locations, unit='rad'):
+        if isinstance(locations, list):
+            locations = np.array(locations)
+        if locations.ndim != 2:
+            raise ValueError('2D numpy array expected.')
+        if unit not in FarField1DSourcePlacement.VALID_RANGES:
+            raise ValueError(
+                'Unit can only be one of the following: {0}.'
+                .format(', '.join(FarField1DSourcePlacement.VALID_RANGES.keys()))
+            )
+        lb, ub = FarField1DSourcePlacement.VALID_RANGES[unit]
+        if np.any(locations[:, 1] < lb) or np.any(locations[:, 1] > ub):
+            raise ValueError(
+                "When unit is '{0}', source locations must be within [{0}, {1}]."
+                .format_map(unit, lb, ub)
+            )
+        if np.any(locations[:, 0] < 0):
+            raise ValueError(
+                "When unit is '{0}', source locations must be within [{0}, {1}]."
+                .format_map(unit, lb, ub)
+            )
+        super().__init__(locations, (unit,))
+
+    def as_unit(self, new_unit):
+        raise NotImplementedError
+
+    @staticmethod
+    def from_z(z, wavelength, d0, unit='rad'):
+        raise NotImplementedError
+
+    @property
+    def is_far_field(self):
+        return False
+
+    @property
+    def valid_ranges(self):
+        return NearField1DSourcePlacement.VALID_RANGES[self._units[0]],
+
+    def calc_spherical_coords(self, ref_locations):
+        raise NotImplementedError
+        # m = ref_locations.shape[0]
+        # k = self.size
+        # r = np.full((m, k), np.inf)
+        # el = np.zeros((m, k))
+        # # Broadside angles are defined relative to the y-axis
+        # az = np.pi / 2 - convert_angles(self.locations, self.units[0], 'rad')
+        # az = np.tile(az, (m, 1))
+        # return r, az, el
+
+    def phase_delay_matrix(self, sensor_locations, wavelength, derivatives=False):
+        """Computes the phase delay matrix for 1D far-field sources."""
+        _validate_sensor_location_ndim(sensor_locations)
+
+        if self._units[0] == 'sin':
+            raise NotImplementedError
+        else:
+            return self._phase_delay_matrix_rad(sensor_locations, wavelength, derivatives)
+
+    def _phase_delay_matrix_rad(self, sensor_locations, wavelength, derivatives=False):
+        # Unit can only be 'rad' or 'deg'.
+        # Unify to radians.
+        if self._units[0] == 'deg':
+            locations = np.deg2rad(self._locations)
+        else:
+            locations = self._locations
+
+        locations = locations[np.newaxis]
+        s = 2 * np.pi / wavelength
+        _range = locations[:, :, 0]
+        doas = locations[:, :, 1]
+
+        if sensor_locations.shape[1] == 1:
+
+            x_sensor_locations = sensor_locations
+            y_sensor_locations = 0
+
+            ##############
+            # Compute DD
+            ##############
+            dist = np.sqrt((y_sensor_locations - _range * np.cos(doas)) ** 2 + (
+                    x_sensor_locations - _range * np.sin(doas)) ** 2)
+            D = s * (dist - dist[0])
+
+            # D[i,k] = sensor_location[i] * sin(doa[k])
+            # D = s * np.outer(sensor_locations, np.sin(locations))
+            if derivatives:
+                drange = _range - (y_sensor_locations * np.cos(doas) + x_sensor_locations * np.sin(doas))
+                ddoas = - y_sensor_locations * _range * np.sin(doas) + x_sensor_locations * _range * np.cos(doas)
+
+                ddist = np.concatenate([drange, ddoas], axis=-1) / dist
+
+                # d2
+                DD = s * (ddist - ddist[0])
+        else:
+            # The sources are assumed to be within the xy-plane. The offset
+            # along the z-axis of the sensors does not affect the delays.
+            # D[i,k] = sensor_location_x[i] * sin(doa[k])
+            #          + sensor_location_y[i] * cos(doa[k])
+            D = s * (np.outer(sensor_locations[:, 0], np.sin(locations)) +
+                     np.outer(sensor_locations[:, 1], np.cos(locations)))
+            if derivatives:
+                DD = s * (np.outer(sensor_locations[:, 0], np.cos(locations)) -
+                          np.outer(sensor_locations[:, 1], np.sin(locations)))
+        if self._units[0] == 'deg' and derivatives:
+            DD *= np.pi / 180.0  # Do not forget the scaling when unit is 'deg'.
+        return (D, DD) if derivatives else D

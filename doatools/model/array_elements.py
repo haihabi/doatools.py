@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 
+
 class ArrayElement(ABC):
     """Base class for array elements."""
 
@@ -75,7 +76,7 @@ class ArrayElement(ABC):
                 )
         # Call the actual implementation.
         return self._calc_spatial_response(r, az, el, polarization)
-    
+
     @abstractmethod
     def _calc_spatial_response(self, r, az, el, polarization):
         """Actual implementation of spatial response calculations.
@@ -83,6 +84,7 @@ class ArrayElement(ABC):
         The inputs are guaranteed to have valid shapes.
         """
         raise NotImplementedError()
+
 
 class IsotropicScalarSensor(ArrayElement):
     """Creates an isotropic scalar array element."""
@@ -98,15 +100,17 @@ class IsotropicScalarSensor(ArrayElement):
     @property
     def is_polarized(self):
         return False
-    
+
     def _calc_spatial_response(self, r, az, el, polarization):
         if np.isscalar(r):
             return 1.
         else:
             return np.ones_like(r)
 
+
 #: An isotropic scalar sensor.
 ISOTROPIC_SCALAR_SENSOR = IsotropicScalarSensor()
+
 
 class CustomNonisotropicSensor(ArrayElement):
     """Creates a customize non-isotropic sensor.
