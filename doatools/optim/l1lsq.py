@@ -1,11 +1,14 @@
 import numpy as np
 import warnings
+
 try:
     import cvxpy as cvx
+
     cvx_available = True
 except ImportError:
-    warnings.warn('Cannot import cvxpr. Some sparse recovery based estimators will not be usable.')
+    warnings.warn('Cannot import cvxpy. Some sparse recovery based estimators will not be usable.')
     cvx_available = False
+
 
 class L1RegularizedLeastSquaresProblem:
     r"""Creates a reusable :math:`l_1`-regularized least squares problem.
@@ -117,6 +120,7 @@ class L1RegularizedLeastSquaresProblem:
             return np.zeros((self._x.size,))
         return self._x.value
 
+
 class L21RegularizedLeastSquaresProblem:
     r"""Creates an :math:`l_{2,1}`-norm regularized least squares problem.
     
@@ -166,7 +170,7 @@ class L21RegularizedLeastSquaresProblem:
         #   cvx.norm does not work if axis is not 0.
         # Workaround:
         #   use cvx.norm(X.T, 2, axis=0) instead of cvx.norm(X, 2, axis=1)
-        obj_func = 0.5 * cvx.norm(cvx.matmul(A, X) - B, 'fro')**2 + \
+        obj_func = 0.5 * cvx.norm(cvx.matmul(A, X) - B, 'fro') ** 2 + \
                    l * cvx.sum(cvx.norm(X.T, 2, axis=0))
         self._problem = cvx.Problem(cvx.Minimize(obj_func))
         self._A = A

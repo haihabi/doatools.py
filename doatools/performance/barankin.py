@@ -46,10 +46,11 @@ def search_test_points(array, wavelength, sources, sigma, p, n_snapshots, r_inv,
         cost = cost[cost >= 0]
 
     peaks = scipy.signal.find_peaks(1 / cost)[0]
-    return test_points_search_array[:, peaks]
+    return test_points_search_array[:, peaks], 1 / cost, test_points_search_array
 
 
-def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1, l_test_points=30):
+def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1, l_test_points=30,
+                               l_search_point=1600, output_search_landscape=False):
     r"""Computes the stochastic Barankin for 1D farfield sources with the assumption
     that the sources are uncorrelated.
 
@@ -102,9 +103,11 @@ def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots
     R = compute_r_matrix(array, wavelength, sources, sigma, p)
     r_det = np.real(np.linalg.det(R))
     r_inv = np.linalg.inv(R)
-    test_points = search_test_points(array, wavelength, sources, sigma, p, n_snapshots, r_inv, r_det, l_test_points,
-                                     l_options=1600,
-                                     eps=1e-2)
+    test_points, search_landscape, test_points_search_array = search_test_points(array, wavelength, sources, sigma, p,
+                                                                                 n_snapshots, r_inv, r_det,
+                                                                                 l_test_points,
+                                                                                 l_options=l_search_point,
+                                                                                 eps=1e-2)
     #############################
     # Compute the Barankin matrix
     #############################
@@ -134,4 +137,7 @@ def barankin_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots
         delta_matrix = delta_matrix[index, index].reshape([1, 1])
         delta_tp = delta_tp[:, index]
     bound = delta_tp @ np.linalg.inv(delta_matrix) @ delta_tp.T
-    return bound, b_matrix, test_points
+    if output_search_landscape:
+        return bound, b_matrix, test_points, search_landscape,test_points_search_array
+    else:
+        return bound, b_matrix, test_points
