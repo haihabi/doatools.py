@@ -291,11 +291,13 @@ def crb_stouc_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
     k = sources.size
     p = unify_p_to_vector(p, k)
     m = array.size
+    if np.isscalar(sigma):
+        sigma = sigma * np.eye(m)
     # We need to compute each submatrix of the FIM.
     A, DA = array.steering_matrix(sources, wavelength, True, 'all')
     A_H = A.conj().T
     DA_H = DA.conj().T
-    R = (A * p) @ A_H + sigma * np.eye(m)
+    R = (A * p) @ A_H + sigma
     R_inv = np.linalg.inv(R)
     R_inv = 0.5 * (R_inv + R_inv.conj().T)
     DRD = DA_H @ R_inv @ DA
