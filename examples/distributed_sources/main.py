@@ -7,7 +7,7 @@ from examples.distributed_sources.ds_helpers import sweep_snrs, plot_array_sourc
 #################################
 #
 #################################
-fontsize = 16
+fontsize = 24
 n_snapshots = 300
 n_sensors = 12
 wavelength = 1.0  # normalized
@@ -53,8 +53,8 @@ plt.figure(figsize=(8, 6))
 plt.semilogy(
     snrs, crbs_b1, '--',
     snrs, crbs_b2,
-    snrs, pmle_psi, "--x",
-    snrs, mle_psi, "--o"
+    # snrs, pmle_psi, "--x",
+    # snrs, mle_psi, "--o"
 )
 plt.xlabel('SNR [dB]', fontsize=fontsize)
 plt.ylabel(r'RMSE [deg]', fontsize=fontsize)
@@ -62,7 +62,7 @@ plt.grid(True)
 plt.legend(['B1', 'B2', 'MUSIC'], fontsize=fontsize)
 # plt.title('MSE vs. CRB')
 plt.tight_layout()
-plt.savefig("mse_vs_snr_doa.svg")
+plt.savefig("mse_vs_snr_doa_break_new.svg")
 plt.show()
 if width_estimation:
     plt.figure(figsize=(8, 6))
@@ -78,7 +78,7 @@ if width_estimation:
     plt.tight_layout()
     plt.savefig("mse_vs_snr_width.svg")
     plt.show()
-raise NotImplemented
+# raise NotImplemented
 snrs = [20]
 
 res = []
@@ -96,11 +96,11 @@ for j, width in enumerate(width_array):
         plot_array_sources(ula, sources, rho, file_name="location.svg")
     # All sources share the same power.
     source_signal = model.ComplexStochasticSignal(sources.size, power_source)
-    pmle_psi, pmle_delta, crbs_b1, crbs_b2, crbs_b1_width, crbs_b2_width = sweep_snrs(ula, sources, source_signal,
-                                                                                      power_source, snrs,
-                                                                                      n_snapshots, wavelength, d0,
-                                                                                      estimator,
-                                                                                      in_width_estimation=width_estimation)
+    _,_, _, pmle_psi, pmle_delta, crbs_b1, crbs_b2, crbs_b1_width, crbs_b2_width = sweep_snrs(ula, sources, source_signal,
+                                                                                            power_source, snrs,
+                                                                                            n_snapshots, wavelength, d0,
+                                                                                            estimator,
+                                                                                            in_width_estimation=width_estimation)
     # print(crbs_b1, crbs_b2, width)
     res.append([crbs_b1, crbs_b2, crbs_b1_width, crbs_b2_width])
 res = np.asarray(res)
@@ -119,7 +119,7 @@ plt.grid(True)
 plt.legend(['B1', 'B2'], fontsize=fontsize)
 # plt.title('MSE vs. CRB')
 plt.tight_layout()
-plt.savefig("mse_vs_width_doa.svg")
+plt.savefig("mse_vs_width_doa_new.svg")
 plt.show()
 if width_estimation:
     plt.figure(figsize=(8, 6))
