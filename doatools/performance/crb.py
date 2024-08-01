@@ -1,5 +1,5 @@
 import numpy as np
-from ..model.sources import FarField1DSourcePlacement, NearField1DSourcePlacement
+from ..model.sources import FarField1DSourcePlacement, NearField1DSourcePlacement, FarField2DSourcePlacement
 from .utils import unify_p_to_matrix, unify_p_to_vector, reduce_output_matrix
 from ..utils.math import projm
 
@@ -55,11 +55,14 @@ def crb_sto_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
         Acoustics, Speech and Signal Processing, vol. 38, no. 10,
         pp. 1783-1795, Oct. 1990.
     """
-    if not (isinstance(sources, FarField1DSourcePlacement) or isinstance(sources, NearField1DSourcePlacement)):
+    if not (isinstance(sources, FarField1DSourcePlacement) or isinstance(sources,
+                                                                         NearField1DSourcePlacement) or isinstance(
+        sources, FarField2DSourcePlacement)):
         raise ValueError('Sources must be far-field and 1D.')
     k = sources.size
     P = unify_p_to_matrix(p, k)
     A, D = array.steering_matrix(sources, wavelength, True, 'all')
+    D = D.reshape([D.shape[0], -1]) # D is a 2D array.
     A_H = A.T.conj()
     I = np.eye(array.size)
     # Compute the covairance matrix: R = A P A^H + \sigma I
@@ -69,7 +72,8 @@ def crb_sto_farfield_1d(array, sources, wavelength, p, sigma, n_snapshots=1,
     # Compute the H matrix.
     H = D.T.conj() @ (I - P_A) @ D
     # Compute the FIM
-    FIM = (H * ((P @ (A_H @ np.linalg.solve(R, A)) @ P).T)).real
+    U = ((P @ (A_H @ np.linalg.solve(R, A)) @ P).T)
+    FIM = (H * np.kron(U,np.ones([2,2]))).real
     FIM = 2 * n_snapshots * FIM / sigma
     # Compute the CRB
     CRB = np.linalg.inv(FIM) * (1 / 1 / 1)

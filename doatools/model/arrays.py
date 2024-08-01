@@ -418,7 +418,10 @@ class ArrayDesign:
         T = sources.phase_delay_matrix(actual_locations, wavelength, compute_derivatives)
         if compute_derivatives:
             A = np.exp(1j * T[0])
-            DA = [A * (1j * X) for X in T[1:]]
+            if sources.is_2d:
+                DA = [np.expand_dims(A, axis=-1) * (1j * X) for X in T[1:]]
+            else:
+                DA = [A * (1j * X) for X in T[1:]]
         else:
             A = np.exp(1j * T)
             DA = []

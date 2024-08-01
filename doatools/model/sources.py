@@ -22,6 +22,11 @@ class SourcePlacement(ABC):
         self._locations = locations
         self._units = units
 
+    @property
+    def is_2d(self):
+        """Retrieves whether the source placement is 2D."""
+        return False
+
     def __len__(self):
         """Returns the number of sources."""
         return self._locations.shape[0]
@@ -326,6 +331,10 @@ class FarField1DSourcePlacement(SourcePlacement):
 
 
 class FarField1DGroupSourcePlacement(FarField1DSourcePlacement):
+    """Creates a far-field 1D source placement with groups.
+
+    """
+
     def __init__(self, in_rho, in_width, in_total_sources, width_estimation=False):
         self._n_groups = in_rho.shape[0]
         sensors_per_ground = in_total_sources // self.n_groups
@@ -373,6 +382,10 @@ class FarField2DSourcePlacement(SourcePlacement):
         'rad': ((-np.pi, np.pi), (-np.pi / 2, np.pi / 2)),
         'deg': ((-180.0, 180.0), (-90.0, 90.0))
     }
+
+    @property
+    def is_2d(self):
+        return True
 
     def __init__(self, locations, unit='rad'):
         if isinstance(locations, list):
@@ -426,8 +439,6 @@ class FarField2DSourcePlacement(SourcePlacement):
     def phase_delay_matrix(self, sensor_locations, wavelength, derivatives=False):
         """Computes the phase delay matrix for 2D far-field sources."""
         _validate_sensor_location_ndim(sensor_locations)
-        if derivatives:
-            raise ValueError('Derivative matrix computation is not supported for far-field 2D DOAs.')
 
         # Unify to radians.
         if self._units[0] == 'deg':
@@ -441,6 +452,10 @@ class FarField2DSourcePlacement(SourcePlacement):
             # Linear arrays are assumed to be placed along the x-axis
             # Need to convert azimuth-elevation pairs to broadside angles.
             D = s * np.outer(sensor_locations, cos_el * np.cos(locations[:, 0]))
+            if derivatives:
+                DD = -np.stack([s * np.outer(sensor_locations, cos_el * np.sin(locations[:, 0])),
+                                s * np.outer(sensor_locations, np.sin(locations[:, 1]) * np.cos(locations[:, 0]))],
+                               axis=-1)
         else:
             # Notes: the sum of outer products can also be rewritten using
             #        matrix multiplications.
@@ -449,11 +464,26 @@ class FarField2DSourcePlacement(SourcePlacement):
             if sensor_locations.shape[1] == 2:
                 D = s * (np.outer(sensor_locations[:, 0], cc) +
                          np.outer(sensor_locations[:, 1], cs))
+                if derivatives:
+                    dd_az = s * np.outer(sensor_locations[:, 0], -cs) + s * np.outer(sensor_locations[:, 1], cc)
+                    dd_el = -s * (np.outer(sensor_locations[:, 0],
+                                           np.sin(locations[:, 1]) * np.cos(locations[:, 0])) + np.outer(
+                        sensor_locations[:, 1], np.sin(locations[:, 1]) * np.sin(locations[:, 0])))
+                    DD = np.stack([dd_az, dd_el], axis=-1)
             else:
                 D = s * (np.outer(sensor_locations[:, 0], cc) +
                          np.outer(sensor_locations[:, 1], cs) +
                          np.outer(sensor_locations[:, 2], np.sin(locations[:, 1])))
+                if derivatives:
+                    dd_az = s * np.outer(sensor_locations[:, 0], -cs) + s * np.outer(sensor_locations[:, 1], cc)
+                    dd_el = -s * (np.outer(sensor_locations[:, 0],
+                                           np.sin(locations[:, 1]) * np.cos(locations[:, 0])) + np.outer(
+                        sensor_locations[:, 1], np.sin(locations[:, 1]) * np.sin(locations[:, 0]))) + s * np.outer(
+                        sensor_locations[:, 2], cos_el)
+                    DD = np.stack([dd_az, dd_el], axis=-1)
 
+        if derivatives:
+            return D, DD
         return D
 
 
@@ -477,6 +507,10 @@ class NearField2DSourcePlacement(SourcePlacement):
     @property
     def is_far_field(self):
         return False
+
+    @property
+    def is_2d(self):
+        return True
 
     @property
     def valid_ranges(self):
